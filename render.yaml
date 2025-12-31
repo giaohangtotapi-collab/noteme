@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: noteme-backend
+    env: go
+    buildCommand: go build -o server cmd/server/main.go
+    startCommand: ./server
+    envVars:
+      - key: GIN_MODE
+        value: release
+      - key: PORT
+        fromService:
+          type: web
+          name: noteme-backend
+          property: port
+    healthCheckPath: /health
+
