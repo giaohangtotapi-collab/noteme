@@ -1,8 +1,7 @@
 module noteme
 
-go 1.23.0
+go 1.21.13
 
-toolchain go1.24.4
 
 require (
 	github.com/gin-gonic/gin v1.11.0
