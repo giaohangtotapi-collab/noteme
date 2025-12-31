@@ -45,10 +45,24 @@
 2. New → Web Service
 3. Connect GitHub repo
 4. Settings:
-   - Build Command: `go build -o server cmd/server/main.go`
-   - Start Command: `./server`
-   - Environment: Go
-5. Set environment variables
+   - **Name:** noteme-backend
+   - **Environment:** Go
+   - **Build Command:** `go mod download && go build -o server cmd/server/main.go`
+   - **Start Command:** `./server`
+   - **Plan:** Free
+   - **Health Check Path:** `/health`
+5. Set environment variables trong dashboard:
+   - `FPT_AI_API_KEY`
+   - `FPT_AI_STT_URL` (optional, có default)
+   - `OPENAI_API_KEY`
+   - `GIN_MODE=release` (optional)
+   - `PORT` (Render tự set, không cần)
+6. Deploy!
+
+**Lưu ý:** 
+- Render sẽ tự detect Go version từ `go.mod` (1.21.13)
+- File `render.yaml` đã được tạo sẵn, có thể dùng để auto-config
+- Free tier sẽ sleep sau 15 phút không có traffic
 
 ---
 
