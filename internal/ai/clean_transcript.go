@@ -46,7 +46,13 @@ NGUYÊN TẮC:
 - Không suy diễn quá mức
 - Không "làm đẹp" nội dung ngoài ý người nói
 - Giữ nguyên ý định gốc, không thêm ý cá nhân
-- Ưu tiên sửa các từ kỹ thuật, tên riêng, Vinglish bị nhận dạng sai`
+- Ưu tiên sửa các từ kỹ thuật, tên riêng, Vinglish bị nhận dạng sai
+
+QUAN TRỌNG VỀ NGÔN NGỮ:
+- TẤT CẢ output phải bằng TIẾNG VIỆT
+- CHỈ giữ lại keywords chuyên ngành bằng tiếng Anh (Vinglish) như: API, Backend, Frontend, MVP, STT, AI, OpenAI, FPT.AI, Golang, Flutter, React Native, Firebase, Deadline, Task, KPI, Meeting, Call, Share, Mindmap, Demo, Test, Dev, Developer, etc.
+- KHÔNG dịch các thuật ngữ chuyên ngành sang tiếng Việt
+- cleaned_text và summary phải bằng tiếng Việt hoàn toàn, chỉ giữ keywords chuyên ngành`
 
 	userPrompt := fmt.Sprintf(`Hãy phân tích và làm sạch đoạn hội thoại sau (đã được chuyển từ âm thanh sang text, có thể có nhiều lỗi nhận dạng):
 
@@ -78,16 +84,18 @@ BƯỚC 4 - Tóm tắt:
 
 Trả về JSON với format:
 {
-  "cleaned_text": "Bản viết lại rõ ràng, chuẩn, đã sửa TẤT CẢ lỗi nhận dạng",
-  "summary": "Tóm tắt ngắn gọn",
+  "cleaned_text": "Bản viết lại rõ ràng, chuẩn, đã sửa TẤT CẢ lỗi nhận dạng, bằng TIẾNG VIỆT",
+  "summary": "Tóm tắt ngắn gọn bằng TIẾNG VIỆT",
   "decoded_words": ["từ sai → từ đúng", "từ sai → từ đúng"]
 }
 
 QUAN TRỌNG:
-- cleaned_text: PHẢI sửa tất cả lỗi nhận dạng, đặc biệt là tên riêng, thuật ngữ kỹ thuật, Vinglish
+- cleaned_text: PHẢI sửa tất cả lỗi nhận dạng, đặc biệt là tên riêng, thuật ngữ kỹ thuật, Vinglish. PHẢI bằng TIẾNG VIỆT, chỉ giữ keywords chuyên ngành bằng tiếng Anh
+- summary: PHẢI bằng TIẾNG VIỆT, chỉ giữ keywords chuyên ngành bằng tiếng Anh
 - decoded_words: Liệt kê các từ/cụm từ đã sửa theo format "sai → đúng"
 - Dựa vào ngữ cảnh để suy đoán hợp lý (ví dụ: nếu nói về app, "Nút Mi" rất có thể là "NoteMe")
-- Nếu không chắc chắn, ưu tiên giữ nguyên nhưng ghi chú trong decoded_words`, transcript)
+- Nếu không chắc chắn, ưu tiên giữ nguyên nhưng ghi chú trong decoded_words
+- TẤT CẢ nội dung phải bằng TIẾNG VIỆT, chỉ giữ keywords chuyên ngành bằng tiếng Anh`, transcript)
 
 	// Create OpenAI client
 	client := openai.NewClient(apiKey)

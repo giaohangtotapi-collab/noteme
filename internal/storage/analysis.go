@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	analyses = make(map[string]*ai.AnalysisResult)
+	analyses   = make(map[string]*ai.AnalysisResult)
 	muAnalysis sync.Mutex
 )
 
@@ -30,3 +30,16 @@ func GetAnalysis(recordingID string) (*ai.AnalysisResult, bool) {
 	return &resultCopy, true
 }
 
+// GetAllAnalyses retrieves all analysis results
+func GetAllAnalyses() map[string]*ai.AnalysisResult {
+	muAnalysis.Lock()
+	defer muAnalysis.Unlock()
+
+	// Return a copy of the map
+	result := make(map[string]*ai.AnalysisResult)
+	for k, v := range analyses {
+		resultCopy := *v
+		result[k] = &resultCopy
+	}
+	return result
+}
