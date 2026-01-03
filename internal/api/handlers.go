@@ -25,6 +25,7 @@ func RegisterRoutes(r *gin.Engine) {
 		v1.GET("/recordings/:recording_id/status", getRecordingStatus)
 		v1.POST("/ai/analyze/:recording_id", analyzeRecording)
 		v1.GET("/ai/analyze/:recording_id", getAnalysis)
+		v1.POST("/ai/ask", askAnything)
 	}
 }
 
@@ -289,5 +290,78 @@ func getAnalysis(c *gin.Context) {
 		"action_items": result.ActionItems,
 		"key_points":   result.KeyPoints,
 		"zalo_brief":   result.ZaloBrief,
+	})
+}
+
+// AskRequest represents the ask anything request
+type AskRequest struct {
+	Question string `json:"question" binding:"required"`
+}
+
+// askAnything answers questions based on all analyzed data
+func askAnything(c *gin.Context) {
+	var req AskRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.Error(c, http.StatusBadRequest, "question is required")
+		return
+	}
+
+	if req.Question == "" {
+		utils.Error(c, http.StatusBadRequest, "question cannot be empty")
+		return
+	}
+
+	log.Printf("Ask Anything request: %s", req.Question)
+
+	// Get all analyses
+	allAnalyses := storage.GetAllAnalyses()
+	if len(allAnalyses) == 0 {
+		utils.Error(c, http.StatusBadRequest, "no analysis data available. Please analyze some recordings first")
+		return
+	}
+
+	log.Printf("Found %d analyses to use as context", len(allAnalyses))
+
+	// Build analysis contexts with recording info
+	analysisContexts := make([]ai.AnalysisContext, 0, len(allAnalyses))
+	for recordingID, analysis := range allAnalyses {
+		// Get recording info for context
+		rec, ok := storage.GetRecording(recordingID)
+		if !ok {
+			// Skip if recording not found, but still use analysis
+			analysisContexts = append(analysisContexts, ai.AnalysisContext{
+				RecordingID: recordingID,
+				Context:     analysis.Context,
+				Summary:     analysis.Summary,
+				ActionItems: analysis.ActionItems,
+				KeyPoints:   analysis.KeyPoints,
+			})
+			continue
+		}
+
+		analysisContexts = append(analysisContexts, ai.AnalysisContext{
+			RecordingID: recordingID,
+			CreatedAt:   rec.CreatedAt,
+			Context:     analysis.Context,
+			Summary:     analysis.Summary,
+			ActionItems: analysis.ActionItems,
+			KeyPoints:   analysis.KeyPoints,
+			Transcript:  rec.Transcript,
+		})
+	}
+
+	// Call AI to answer
+	answer, err := ai.AskAnything(req.Question, analysisContexts)
+	if err != nil {
+		log.Printf("Ask Anything error: %v", err)
+		utils.Error(c, http.StatusInternalServerError, "failed to get answer: "+err.Error())
+		return
+	}
+
+	log.Printf("Ask Anything answer: %s", answer)
+
+	utils.Success(c, gin.H{
+		"question": req.Question,
+		"answer":   answer,
 	})
 }
