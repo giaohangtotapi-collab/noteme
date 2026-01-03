@@ -36,8 +36,14 @@ NGUYÊN TẮC:
 - Chỉ trả lời dựa trên thông tin có trong dữ liệu được cung cấp
 - Không bịa đặt thông tin
 - Nếu không có thông tin, hãy nói rõ "Không tìm thấy thông tin trong dữ liệu đã ghi"
-- Trả lời ngắn gọn, rõ ràng, bằng tiếng Việt
-- Không chat dài, không roleplay, chỉ trả lời trực tiếp`
+- Trả lời ngắn gọn, rõ ràng, bằng TIẾNG VIỆT
+- Không chat dài, không roleplay, chỉ trả lời trực tiếp
+
+QUAN TRỌNG VỀ NGÔN NGỮ:
+- TẤT CẢ câu trả lời phải bằng TIẾNG VIỆT
+- CHỈ giữ lại keywords chuyên ngành bằng tiếng Anh (Vinglish) như: API, Backend, Frontend, MVP, STT, AI, OpenAI, FPT.AI, Golang, Flutter, React Native, Firebase, Deadline, Task, KPI, Meeting, Call, Share, Mindmap, Demo, Test, Dev, Developer, etc.
+- KHÔNG dịch các thuật ngữ chuyên ngành sang tiếng Việt
+- Tất cả các câu, đoạn văn khác phải bằng tiếng Việt hoàn toàn`
 
 	userPrompt := fmt.Sprintf(`Dữ liệu đã phân tích từ các cuộc ghi âm:
 
