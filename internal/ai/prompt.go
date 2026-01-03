@@ -7,12 +7,18 @@ import (
 
 // BuildPrompt builds the complete prompt for LLM
 func BuildPrompt(transcript string, context string) (string, string) {
-	systemPrompt := `You are an assistant that analyzes Vietnamese speech transcripts.
-You must be precise, neutral, and factual.
-Do not invent information.
-Only use information explicitly present in the transcript.
-Return valid JSON only.
-You MUST fill all fields in the response, even if some are empty arrays.`
+	systemPrompt := `Bạn là trợ lý AI phân tích bản ghi âm tiếng Việt cho NoteMe.
+Bạn phải chính xác, trung lập và dựa trên sự thật.
+KHÔNG được bịa đặt thông tin.
+CHỈ sử dụng thông tin có trong transcript.
+Trả về JSON hợp lệ.
+BẮT BUỘC điền đầy đủ tất cả các trường, kể cả nếu một số là mảng rỗng.
+
+QUAN TRỌNG VỀ NGÔN NGỮ:
+- TẤT CẢ nội dung phải bằng TIẾNG VIỆT
+- CHỈ giữ lại keywords chuyên ngành bằng tiếng Anh (Vinglish) như: API, Backend, Frontend, MVP, STT, AI, OpenAI, FPT.AI, Golang, Flutter, React Native, Firebase, Deadline, Task, KPI, Meeting, Call, Share, Mindmap, Demo, Test, Dev, Developer, etc.
+- KHÔNG dịch các thuật ngữ chuyên ngành sang tiếng Việt
+- Tất cả các câu, đoạn văn khác phải bằng tiếng Việt hoàn toàn`
 
 	userPrompt := fmt.Sprintf(`Transcript:
 """
@@ -21,36 +27,38 @@ You MUST fill all fields in the response, even if some are empty arrays.`
 
 Context: %s
 
-Tasks:
-1. Write a concise summary (max 5 bullet points) - REQUIRED, must be an array of strings.
-2. Extract clear action items, if any - REQUIRED, must be an array of strings (can be empty if none).
-3. Extract key facts, numbers, names, or commitments - REQUIRED, must be an array of strings (can be empty if none).
-4. Create a brief summary for Zalo (3 bullet points max) - REQUIRED, must be a string (can be empty if no content).
+Nhiệm vụ:
+1. Viết tóm tắt ngắn gọn (tối đa 5 điểm) - BẮT BUỘC, phải là mảng các chuỗi tiếng Việt.
+2. Trích xuất action items rõ ràng, nếu có - BẮT BUỘC, phải là mảng các chuỗi tiếng Việt (có thể rỗng nếu không có).
+3. Trích xuất các sự kiện quan trọng, số liệu, tên, hoặc cam kết - BẮT BUỘC, phải là mảng các chuỗi tiếng Việt (có thể rỗng nếu không có).
+4. Tạo tóm tắt ngắn cho Zalo (tối đa 3 điểm) - BẮT BUỘC, phải là chuỗi tiếng Việt (có thể rỗng nếu không có nội dung).
 
-IMPORTANT RULES:
-- ALL fields are REQUIRED in the JSON response.
-- summary: array of strings, at least 1 item if transcript has content
-- action_items: array of strings, can be empty [] if no actions found
-- key_points: array of strings, extract important facts/numbers/names/commitments, can be empty [] if none
-- zalo_brief: string, 3 bullet points format like "- Point 1\n- Point 2\n- Point 3", can be empty string if no content
-- If transcript is about lecture/thinking, key_points should contain main ideas/concepts
-- If transcript is about meeting, action_items should contain tasks/commitments
+QUY TẮC QUAN TRỌNG:
+- TẤT CẢ các trường đều BẮT BUỘC trong JSON response.
+- summary: mảng các chuỗi tiếng Việt, ít nhất 1 mục nếu transcript có nội dung
+- action_items: mảng các chuỗi tiếng Việt, có thể rỗng [] nếu không tìm thấy action
+- key_points: mảng các chuỗi tiếng Việt, trích xuất các sự kiện/số liệu/tên/cam kết quan trọng, có thể rỗng [] nếu không có
+- zalo_brief: chuỗi tiếng Việt, định dạng 3 điểm như "- Điểm 1\n- Điểm 2\n- Điểm 3", có thể là chuỗi rỗng "" nếu không có nội dung
+- Nếu transcript về lecture/thinking, key_points nên chứa các ý tưởng/khái niệm chính
+- Nếu transcript về meeting, action_items nên chứa các nhiệm vụ/cam kết
+- TẤT CẢ nội dung phải bằng TIẾNG VIỆT, chỉ giữ keywords chuyên ngành bằng tiếng Anh (API, Backend, MVP, etc.)
 
-Output JSON exactly in the following format (ALL fields required, use empty array [] or empty string "" if no data):
+Trả về JSON chính xác theo format sau (TẤT CẢ các trường bắt buộc, dùng mảng rỗng [] hoặc chuỗi rỗng "" nếu không có dữ liệu):
 
 {
   "context": "%s",
-  "summary": ["point 1", "point 2"],
-  "action_items": ["task 1", "task 2"],
-  "key_points": ["fact 1", "fact 2"],
-  "zalo_brief": "- Point 1\\n- Point 2\\n- Point 3"
+  "summary": ["điểm 1", "điểm 2"],
+  "action_items": ["nhiệm vụ 1", "nhiệm vụ 2"],
+  "key_points": ["sự kiện 1", "sự kiện 2"],
+  "zalo_brief": "- Điểm 1\\n- Điểm 2\\n- Điểm 3"
 }
 
-CRITICAL: You MUST provide all fields:
-- summary: MUST have at least 1 item if transcript has meaningful content
-- action_items: array (can be empty [] if no actions)
-- key_points: array (MUST extract key facts/numbers/names/ideas, can be empty [] only if truly no key information)
-- zalo_brief: string (MUST provide 3 bullet points format, use empty string "" only if transcript is completely empty)`, transcript, context, context)
+QUAN TRỌNG: Bạn PHẢI cung cấp tất cả các trường:
+- summary: PHẢI có ít nhất 1 mục nếu transcript có nội dung ý nghĩa
+- action_items: mảng (có thể rỗng [] nếu không có actions)
+- key_points: mảng (PHẢI trích xuất các sự kiện/số liệu/tên/ý tưởng quan trọng, chỉ rỗng [] nếu thực sự không có thông tin quan trọng)
+- zalo_brief: chuỗi (PHẢI cung cấp định dạng 3 điểm, chỉ dùng chuỗi rỗng "" nếu transcript hoàn toàn trống)
+- TẤT CẢ nội dung phải bằng TIẾNG VIỆT, chỉ giữ keywords chuyên ngành bằng tiếng Anh`, transcript, context, context)
 
 	return systemPrompt, userPrompt
 }
