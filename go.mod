@@ -6,7 +6,7 @@ require (
 	github.com/gin-gonic/gin v1.9.1
 	github.com/joho/godotenv v1.5.1
 	github.com/sashabaranov/go-openai v1.41.2
-	golang.org/x/oauth2 v0.34.0
+	golang.org/x/oauth2 v0.20.0
 )
 
 require (
