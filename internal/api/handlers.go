@@ -5,12 +5,33 @@ import (
 	"net/http"
 	"noteme/internal/ai"
 	"noteme/internal/storage"
+	"noteme/internal/stt"
 	"noteme/internal/utils"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 )
+
+var (
+	sttProvider     stt.Provider
+	sttProviderOnce sync.Once
+)
+
+// getSTTProvider returns the STT provider (singleton)
+func getSTTProvider() (stt.Provider, error) {
+	var err error
+	sttProviderOnce.Do(func() {
+		sttProvider, err = stt.CreateProvider()
+		if err != nil {
+			log.Printf("Failed to create STT provider: %v", err)
+		} else {
+			log.Printf("STT provider initialized: %s", sttProvider.Name())
+		}
+	})
+	return sttProvider, err
+}
 
 func RegisterRoutes(r *gin.Engine) {
 	// Health check
@@ -39,10 +60,35 @@ func healthCheck(c *gin.Context) {
 
 // uploadRecording handles audio file upload
 func uploadRecording(c *gin.Context) {
+	// Log request info for debugging
+	log.Printf("[Upload] Content-Type: %s", c.GetHeader("Content-Type"))
+	log.Printf("[Upload] Request method: %s", c.Request.Method)
+
+	// Try to parse multipart form if not already parsed
+	if c.Request.MultipartForm == nil {
+		if err := c.Request.ParseMultipartForm(32 << 20); err != nil { // 32MB max
+			log.Printf("[Upload] Failed to parse multipart form: %v", err)
+			utils.Error(c, http.StatusBadRequest, "failed to parse multipart form: "+err.Error())
+			return
+		}
+	}
+
+	// Log all form fields for debugging
+	if c.Request.MultipartForm != nil {
+		log.Printf("[Upload] Form fields: %v", c.Request.MultipartForm.Value)
+		log.Printf("[Upload] Form files: %v", c.Request.MultipartForm.File)
+	}
+
 	file, err := c.FormFile("audio_file")
 	if err != nil {
-		utils.Error(c, http.StatusBadRequest, "audio_file is required")
-		return
+		log.Printf("[Upload] FormFile error: %v", err)
+		// Try alternative field names
+		if file, err = c.FormFile("audio"); err != nil {
+			if file, err = c.FormFile("file"); err != nil {
+				utils.Error(c, http.StatusBadRequest, "audio_file is required. Error: "+err.Error())
+				return
+			}
+		}
 	}
 
 	// Validate file extension
@@ -117,14 +163,30 @@ func processRecording(c *gin.Context) {
 	storage.UpdateStatus(id, "processing")
 	log.Printf("Processing recording: %s", id)
 
-	text, conf, err := transcribeFPT(rec.Path)
+	// Get STT provider
+	provider, err := getSTTProvider()
 	if err != nil {
-		log.Printf("STT error for recording %s: %v", id, err)
+		log.Printf("STT provider error for recording %s: %v", id, err)
+		storage.UpdateStatus(id, "failed")
+		storage.UpdateError(id, "STT provider not available: "+err.Error())
+		utils.Error(c, http.StatusInternalServerError, "STT provider not available: "+err.Error())
+		return
+	}
+
+	// Transcribe audio
+	result, err := provider.Transcribe(rec.Path)
+	if err != nil {
+		log.Printf("STT error for recording %s (provider: %s): %v", id, provider.Name(), err)
 		storage.UpdateStatus(id, "failed")
 		storage.UpdateError(id, err.Error())
 		utils.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
+
+	text := result.Transcript
+	conf := result.Confidence
+	log.Printf("STT transcription successful (provider: %s): confidence=%.2f, length=%d",
+		provider.Name(), conf, len(text))
 
 	// Validate transcript is not empty
 	if text == "" {
