@@ -92,8 +92,9 @@ func uploadRecording(c *gin.Context) {
 	}
 
 	// Validate file extension
+	// iPhone supports: M4A (default), CAF, WAV, AIFF, MP3 (via third-party apps)
 	ext := strings.ToLower(filepath.Ext(file.Filename))
-	allowedExts := []string{".m4a", ".mp3", ".wav", ".aac", ".ogg"}
+	allowedExts := []string{".m4a", ".mp3", ".wav", ".aac", ".ogg", ".caf", ".aiff", ".aif"}
 	valid := false
 	for _, allowed := range allowedExts {
 		if ext == allowed {
@@ -102,7 +103,7 @@ func uploadRecording(c *gin.Context) {
 		}
 	}
 	if !valid {
-		utils.Error(c, http.StatusBadRequest, "unsupported audio format. Supported: m4a, mp3, wav, aac, ogg")
+		utils.Error(c, http.StatusBadRequest, "unsupported audio format. Supported: m4a, mp3, wav, aac, ogg, caf, aiff")
 		return
 	}
 

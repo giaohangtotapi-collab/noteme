@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -34,7 +35,7 @@ type GoogleProvider struct {
 //   - A JSON string containing the service account credentials
 func NewGoogleProvider(projectID, keyData string) (*GoogleProvider, error) {
 	keyDataTrimmed := strings.TrimSpace(keyData)
-	
+
 	// Check if it's an API key (typically 39 chars, starts with "AIzaSy")
 	if len(keyDataTrimmed) == 39 && strings.HasPrefix(keyDataTrimmed, "AIzaSy") {
 		log.Printf("[Google STT] Using API key authentication")
@@ -140,27 +141,94 @@ type GoogleSTTError struct {
 	Status  string `json:"status"`
 }
 
+// convertM4AToWAV converts M4A file to WAV format using ffmpeg
+func convertM4AToWAV(inputPath string) (string, error) {
+	// Create temporary output file
+	outputPath := inputPath + ".converted.wav"
+
+	log.Printf("[Google STT] Converting M4A to WAV: %s -> %s", inputPath, outputPath)
+
+	// Run ffmpeg to convert M4A to WAV
+	// -i: input file
+	// -acodec pcm_s16le: PCM 16-bit little-endian (LINEAR16 format)
+	// -ar 44100: sample rate 44100 Hz
+	// -ac 1: mono channel (can be changed to 2 for stereo)
+	// -y: overwrite output file if exists
+	cmd := exec.Command("ffmpeg", "-i", inputPath, "-acodec", "pcm_s16le", "-ar", "44100", "-ac", "1", "-y", outputPath)
+
+	// Capture stderr for error messages
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		errorMsg := stderr.String()
+		log.Printf("[Google STT] FFmpeg conversion failed: %v, stderr: %s", err, errorMsg)
+		return "", fmt.Errorf("failed to convert M4A to WAV: %w, ffmpeg error: %s", err, errorMsg)
+	}
+
+	// Verify output file exists and is not empty
+	info, err := os.Stat(outputPath)
+	if err != nil {
+		return "", fmt.Errorf("converted file not found: %w", err)
+	}
+	if info.Size() < 1000 {
+		os.Remove(outputPath)
+		return "", fmt.Errorf("converted file too small (%d bytes), conversion may have failed", info.Size())
+	}
+
+	log.Printf("[Google STT] Conversion successful: %s (%d bytes)", outputPath, info.Size())
+	return outputPath, nil
+}
+
 // Transcribe transcribes an audio file using Google Cloud Speech-to-Text REST API
 func (p *GoogleProvider) Transcribe(audioPath string) (*Result, error) {
 	startTime := time.Now()
 
-	// Read audio file
-	audioBytes, err := os.ReadFile(audioPath)
+	// Log audio file info
+	fileExt := strings.ToLower(filepath.Ext(audioPath))
+	log.Printf("[Google STT] Processing audio file: %s, extension: %s", audioPath, fileExt)
+
+	// Check if file needs conversion (M4A or AAC from iPhone)
+	actualAudioPath := audioPath
+	needsCleanup := false
+
+	if fileExt == ".m4a" || fileExt == ".aac" {
+		log.Printf("[Google STT] Detected M4A/AAC file, converting to WAV for Google STT compatibility")
+		convertedPath, err := convertM4AToWAV(audioPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert M4A/AAC to WAV: %w", err)
+		}
+		actualAudioPath = convertedPath
+		needsCleanup = true
+		fileExt = ".wav" // Update extension for config
+	}
+
+	// Cleanup converted file after processing
+	defer func() {
+		if needsCleanup {
+			if err := os.Remove(actualAudioPath); err != nil {
+				log.Printf("[Google STT] Warning: failed to cleanup converted file %s: %v", actualAudioPath, err)
+			} else {
+				log.Printf("[Google STT] Cleaned up converted file: %s", actualAudioPath)
+			}
+		}
+	}()
+
+	// Read audio file (original or converted)
+	audioBytes, err := os.ReadFile(actualAudioPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read audio file: %w", err)
 	}
 
-	// Log audio file info
-	fileExt := filepath.Ext(audioPath)
-	log.Printf("[Google STT] Processing audio file: %s, size: %d bytes, extension: %s",
-		audioPath, len(audioBytes), fileExt)
+	log.Printf("[Google STT] Audio file size: %d bytes", len(audioBytes))
 
 	// Check if audio file is too small
 	if len(audioBytes) < 1000 {
 		return nil, fmt.Errorf("audio file too small (%d bytes), may be empty or corrupted", len(audioBytes))
 	}
 
-	// Determine encoding and sample rate based on file extension
+	// Determine encoding and sample rate based on file extension (now WAV after conversion)
 	encoding, sampleRate := getGoogleAudioConfig(fileExt)
 
 	// Base64 encode audio
@@ -313,15 +381,25 @@ func (p *GoogleProvider) Transcribe(audioPath string) (*Result, error) {
 }
 
 // getGoogleAudioConfig determines encoding and sample rate based on file extension
+// Note: Google Speech-to-Text API supports: LINEAR16, FLAC, MULAW, AMR, AMR_WB, OGG_OPUS, SPEEX_WITH_HEADER_BYTE, MP3
+// iPhone formats: M4A (AAC) - not directly supported, CAF/WAV/AIFF - use LINEAR16, MP3 - supported
 func getGoogleAudioConfig(fileExt string) (string, int) {
 	ext := strings.ToLower(fileExt)
 	switch ext {
-	case ".wav":
-		return "LINEAR16", 16000
+	case ".wav", ".aiff", ".aif":
+		// WAV and AIFF are uncompressed formats, use LINEAR16
+		return "LINEAR16", 44100
 	case ".mp3":
 		return "MP3", 44100
 	case ".m4a", ".aac":
-		return "AAC", 44100
+		// M4A/AAC: These files are automatically converted to WAV before processing
+		// This case should not be reached as conversion happens in Transcribe()
+		// But kept for safety - will use LINEAR16 (WAV format)
+		return "LINEAR16", 44100
+	case ".caf":
+		// CAF (Core Audio Format) - Apple's native format, often contains uncompressed audio
+		// Try LINEAR16 (may need conversion in practice)
+		return "LINEAR16", 44100
 	case ".ogg":
 		return "OGG_OPUS", 48000
 	case ".flac":
