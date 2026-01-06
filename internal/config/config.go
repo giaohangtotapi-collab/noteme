@@ -13,6 +13,7 @@ type Config struct {
 	STTProvider        string
 	GoogleSTTProjectID string
 	GoogleSTTKeyFile   string
+	DatabaseURL         string
 }
 
 // Load loads configuration from environment variables
@@ -25,6 +26,7 @@ func Load() (*Config, error) {
 		STTProvider:        getEnv("STT_PROVIDER", "fpt"),
 		GoogleSTTProjectID: os.Getenv("GOOGLE_STT_PROJECT_ID"),
 		GoogleSTTKeyFile:   os.Getenv("GOOGLE_STT_KEY_FILE"),
+		DatabaseURL:         os.Getenv("DATABASE_URL"),
 	}
 
 	// Validate STT provider configuration

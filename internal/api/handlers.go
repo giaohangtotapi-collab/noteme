@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 var (
@@ -47,6 +48,13 @@ func RegisterRoutes(r *gin.Engine) {
 		v1.POST("/ai/analyze/:recording_id", analyzeRecording)
 		v1.GET("/ai/analyze/:recording_id", getAnalysis)
 		v1.POST("/ai/ask", askAnything)
+	}
+
+	// STT API (new endpoints for database-backed history)
+	stt := r.Group("/api/stt")
+	{
+		stt.GET("/history", getSTTHistory)
+		stt.GET("/:id", getSTTDetail)
 	}
 }
 
@@ -119,6 +127,28 @@ func uploadRecording(c *gin.Context) {
 		utils.Error(c, http.StatusInternalServerError, "failed to save audio file")
 		return
 	}
+
+	// Get user ID from header or use default
+	userIDStr := c.GetHeader("X-User-ID")
+	var userID uuid.UUID
+	if userIDStr != "" {
+		if parsedID, err := uuid.Parse(userIDStr); err == nil {
+			userID = parsedID
+		} else {
+			userID = getDefaultUserID()
+		}
+	} else {
+		userID = getDefaultUserID()
+	}
+
+	// Get STT provider name
+	providerName := "fpt" // default
+	if provider, err := getSTTProvider(); err == nil {
+		providerName = provider.Name()
+	}
+
+	// Sync to database
+	syncToDatabase(recordingID, userID, providerName)
 
 	log.Printf("Audio uploaded successfully: %s", recordingID)
 	utils.Success(c, gin.H{
@@ -214,6 +244,22 @@ func processRecording(c *gin.Context) {
 	storage.UpdateStatus(id, "processed")
 	log.Printf("Recording processed successfully: %s (confidence: %.2f, original length: %d, cleaned length: %d)",
 		id, conf, len(text), len(cleanedText))
+
+	// Get user ID from header or use default
+	userIDStr := c.GetHeader("X-User-ID")
+	var userID uuid.UUID
+	if userIDStr != "" {
+		if parsedID, err := uuid.Parse(userIDStr); err == nil {
+			userID = parsedID
+		} else {
+			userID = getDefaultUserID()
+		}
+	} else {
+		userID = getDefaultUserID()
+	}
+
+	// Sync to database (update transcript and confidence)
+	syncToDatabase(id, userID, provider.Name())
 
 	utils.Success(c, gin.H{
 		"recording_id": id,
@@ -320,6 +366,9 @@ func analyzeRecording(c *gin.Context) {
 	// Save analysis
 	storage.SaveAnalysis(id, result)
 	log.Printf("Analysis saved for recording: %s", id)
+
+	// Sync analysis to database
+	syncAnalysisToDatabase(id, result)
 
 	// Return result
 	utils.Success(c, gin.H{

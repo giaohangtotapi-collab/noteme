@@ -14,6 +14,7 @@ type Recording struct {
 	Path        string
 	Status      string // uploaded, processing, processed, failed
 	Duration    int    // in seconds
+	Size        int64  // file size in bytes
 	CreatedAt   string
 	Transcript  string
 	Confidence  float64
@@ -38,11 +39,19 @@ func SaveAudio(file *multipart.FileHeader) (string, error) {
 		return "", fmt.Errorf("failed to save file: %w", err)
 	}
 
+	// Get file size
+	fileInfo, err := os.Stat(dst)
+	var fileSize int64
+	if err == nil {
+		fileSize = fileInfo.Size()
+	}
+
 	mu.Lock()
 	recordings[id] = &Recording{
 		ID:        id,
 		Path:      dst,
 		Status:    "uploaded",
+		Size:      fileSize,
 		CreatedAt: time.Now().Format(time.RFC3339),
 	}
 	mu.Unlock()

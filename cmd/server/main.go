@@ -4,6 +4,8 @@ import (
 	"log"
 	"noteme/internal/api"
 	"noteme/internal/config"
+	"noteme/internal/db"
+	"noteme/internal/repository"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -25,6 +27,26 @@ func main() {
 	// Set Gin mode (default to release mode)
 	if os.Getenv("GIN_MODE") == "" {
 		gin.SetMode(gin.ReleaseMode)
+	}
+
+	// Initialize database if DATABASE_URL is provided
+	if cfg.DatabaseURL != "" {
+		log.Printf("Initializing database connection with DATABASE_URL...")
+		if err := db.Init(); err != nil {
+			log.Printf("Warning: Failed to initialize database: %v. Continuing without database.", err)
+		} else {
+			// Initialize repository
+			log.Printf("Creating PostgreSQL repository...")
+			repo := repository.NewPostgresRepository()
+			if repo == nil {
+				log.Printf("Error: Failed to create repository")
+			} else {
+				api.InitSTTRepository(repo)
+				log.Println("Database and repository initialized successfully")
+			}
+		}
+	} else {
+		log.Println("DATABASE_URL not set, running without database (in-memory storage only)")
 	}
 
 	r := gin.Default()
