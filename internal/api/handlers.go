@@ -54,7 +54,10 @@ func RegisterRoutes(r *gin.Engine) {
 	stt := r.Group("/api/stt")
 	{
 		stt.GET("/history", getSTTHistory)
+		stt.GET("/search", searchSTT)
+		stt.PATCH("/:id/title", updateSTTTitle)
 		stt.GET("/:id", getSTTDetail)
+		stt.DELETE("/:id", deleteSTT)
 	}
 }
 
@@ -341,10 +344,12 @@ func analyzeRecording(c *gin.Context) {
 		utils.Success(c, gin.H{
 			"recording_id": id,
 			"context":      existing.Context,
+			"title":        existing.Title,
 			"summary":      existing.Summary,
 			"action_items": existing.ActionItems,
 			"key_points":   existing.KeyPoints,
 			"zalo_brief":   existing.ZaloBrief,
+			"questions":    existing.Questions,
 		})
 		return
 	}
@@ -374,10 +379,12 @@ func analyzeRecording(c *gin.Context) {
 	utils.Success(c, gin.H{
 		"recording_id": id,
 		"context":      result.Context,
+		"title":        result.Title,
 		"summary":      result.Summary,
 		"action_items": result.ActionItems,
 		"key_points":   result.KeyPoints,
 		"zalo_brief":   result.ZaloBrief,
+		"questions":    result.Questions,
 	})
 }
 
@@ -398,10 +405,12 @@ func getAnalysis(c *gin.Context) {
 	utils.Success(c, gin.H{
 		"recording_id": id,
 		"context":      result.Context,
+		"title":        result.Title,
 		"summary":      result.Summary,
 		"action_items": result.ActionItems,
 		"key_points":   result.KeyPoints,
 		"zalo_brief":   result.ZaloBrief,
+		"questions":    result.Questions,
 	})
 }
 

@@ -13,12 +13,14 @@ import (
 
 // AnalysisResult represents the AI analysis result
 type AnalysisResult struct {
-	Context      string   `json:"context"`
-	Summary      []string `json:"summary"`
-	ActionItems  []string `json:"action_items"`
-	KeyPoints    []string `json:"key_points"`
-	ZaloBrief    string   `json:"zalo_brief,omitempty"`
-	Confidence   float64  `json:"confidence_score,omitempty"`
+	Context     string   `json:"context"`
+	Title       string   `json:"title"`
+	Summary     []string `json:"summary"`
+	ActionItems []string `json:"action_items"`
+	KeyPoints   []string `json:"key_points"`
+	ZaloBrief   string   `json:"zalo_brief,omitempty"`
+	Questions   []string `json:"questions"`
+	Confidence  float64  `json:"confidence_score,omitempty"`
 }
 
 // AnalyzeTranscript analyzes transcript using OpenAI API
@@ -35,7 +37,7 @@ func AnalyzeTranscript(transcript string, detectedContext string) (*AnalysisResu
 
 	// Build prompt (using simple version from day2.md)
 	systemPrompt, userPrompt := BuildPrompt(transcript, detectedContext)
-	
+
 	log.Printf("=== OpenAI Analysis Request ===")
 	log.Printf("Detected context: %s", detectedContext)
 	log.Printf("Transcript length: %d characters", len(transcript))
@@ -48,7 +50,7 @@ func AnalyzeTranscript(transcript string, detectedContext string) (*AnalysisResu
 	// Call OpenAI API
 	ctx := context.Background()
 	log.Printf("Calling OpenAI API with model: GPT-4o-mini")
-	
+
 	req := openai.ChatCompletionRequest{
 		Model: openai.GPT4oMini, // Using GPT-4o-mini as per MVP plan
 		Messages: []openai.ChatCompletionMessage{
@@ -66,7 +68,7 @@ func AnalyzeTranscript(transcript string, detectedContext string) (*AnalysisResu
 			Type: openai.ChatCompletionResponseFormatTypeJSONObject,
 		},
 	}
-	
+
 	resp, err := client.CreateChatCompletion(ctx, req)
 
 	if err != nil {
@@ -76,7 +78,7 @@ func AnalyzeTranscript(transcript string, detectedContext string) (*AnalysisResu
 
 	log.Printf("OpenAI API response received")
 	log.Printf("Number of choices: %d", len(resp.Choices))
-	log.Printf("Usage - Prompt tokens: %d, Completion tokens: %d, Total tokens: %d", 
+	log.Printf("Usage - Prompt tokens: %d, Completion tokens: %d, Total tokens: %d",
 		resp.Usage.PromptTokens, resp.Usage.CompletionTokens, resp.Usage.TotalTokens)
 
 	if len(resp.Choices) == 0 {
@@ -110,11 +112,14 @@ func AnalyzeTranscript(transcript string, detectedContext string) (*AnalysisResu
 	// Log parsed result
 	log.Printf("=== Parsed Analysis Result ===")
 	log.Printf("Context: %s", result.Context)
+	if result.Title != "" {
+		log.Printf("Title: %s", result.Title)
+	}
 	log.Printf("Summary items: %d", len(result.Summary))
 	log.Printf("Action items: %d", len(result.ActionItems))
 	log.Printf("Key points: %d", len(result.KeyPoints))
 	log.Printf("Zalo brief length: %d", len(result.ZaloBrief))
-	
+	log.Printf("Questions: %d", len(result.Questions))
 	if len(result.Summary) > 0 {
 		log.Printf("Summary: %v", result.Summary)
 	}
@@ -126,6 +131,9 @@ func AnalyzeTranscript(transcript string, detectedContext string) (*AnalysisResu
 	}
 	if result.ZaloBrief != "" {
 		log.Printf("Zalo brief: %s", result.ZaloBrief)
+	}
+	if len(result.Questions) > 0 {
+		log.Printf("Questions: %v", result.Questions)
 	}
 
 	// Set context if not in response
@@ -141,6 +149,18 @@ func AnalyzeTranscript(transcript string, detectedContext string) (*AnalysisResu
 		log.Printf("Generated zalo_brief: %s", result.ZaloBrief)
 	}
 
+	// Generate title from summary if missing
+	if result.Title == "" && len(result.Summary) > 0 {
+		log.Printf("Title is empty, generating from summary...")
+		// Use first summary item as title (truncate to 10 words)
+		titleWords := strings.Fields(result.Summary[0])
+		if len(titleWords) > 10 {
+			titleWords = titleWords[:10]
+		}
+		result.Title = strings.Join(titleWords, " ")
+		log.Printf("Generated title: %s", result.Title)
+	}
+
 	// Generate key_points from summary if missing
 	if len(result.KeyPoints) == 0 && len(result.Summary) > 0 {
 		log.Printf("Key points is empty, using summary as key points...")
@@ -153,11 +173,34 @@ func AnalyzeTranscript(transcript string, detectedContext string) (*AnalysisResu
 		log.Printf("Generated key_points: %v", result.KeyPoints)
 	}
 
+	// Generate questions if missing (at least 3 questions)
+	if len(result.Questions) < 3 {
+		log.Printf("Questions count is less than 3, generating default questions...")
+		defaultQuestions := []string{
+			"Chi tiết về nội dung này là gì?",
+			"Có những điểm quan trọng nào cần lưu ý?",
+			"Cần thực hiện những hành động gì tiếp theo?",
+		}
+		// Add more questions if we have context
+		if result.Context != "" {
+			defaultQuestions = append(defaultQuestions, fmt.Sprintf("Bối cảnh %s này có ý nghĩa gì?", result.Context))
+		}
+		if len(result.ActionItems) > 0 {
+			defaultQuestions = append(defaultQuestions, "Các action items cụ thể là gì?")
+		}
+		// Take first 5 questions
+		if len(defaultQuestions) > 5 {
+			defaultQuestions = defaultQuestions[:5]
+		}
+		result.Questions = defaultQuestions
+		log.Printf("Generated questions: %v", result.Questions)
+	}
+
 	// Validate result
 	if len(result.Summary) == 0 && len(result.ActionItems) == 0 && len(result.KeyPoints) == 0 {
 		log.Printf("WARNING: Empty analysis result for transcript length: %d", len(transcript))
 	}
-	
+
 	// Check for missing fields
 	if len(result.Summary) == 0 {
 		log.Printf("WARNING: Summary is empty")
@@ -181,18 +224,18 @@ func generateZaloBrief(summary []string) string {
 	if len(summary) == 0 {
 		return ""
 	}
-	
+
 	// Take first 3 items max
 	maxItems := 3
 	if len(summary) < maxItems {
 		maxItems = len(summary)
 	}
-	
+
 	brief := ""
 	for i := 0; i < maxItems; i++ {
 		brief += "- " + summary[i] + "\n"
 	}
-	
+
 	return strings.TrimSpace(brief)
 }
 
@@ -200,7 +243,7 @@ func generateZaloBrief(summary []string) string {
 func extractJSONFromMarkdown(content string) string {
 	// Remove markdown code blocks
 	content = strings.TrimSpace(content)
-	
+
 	// Remove ```json and ```
 	if strings.HasPrefix(content, "```json") {
 		content = strings.TrimPrefix(content, "```json")
@@ -209,7 +252,7 @@ func extractJSONFromMarkdown(content string) string {
 		content = strings.TrimPrefix(content, "```")
 		content = strings.TrimSuffix(content, "```")
 	}
-	
+
 	return strings.TrimSpace(content)
 }
 
@@ -220,4 +263,3 @@ func truncateString(s string, maxLen int) string {
 	}
 	return s[:maxLen] + "..."
 }
-

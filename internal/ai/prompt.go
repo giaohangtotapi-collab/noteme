@@ -28,17 +28,21 @@ QUAN TRỌNG VỀ NGÔN NGỮ:
 Context: %s
 
 Nhiệm vụ:
-1. Viết tóm tắt ngắn gọn (tối đa 5 điểm) - BẮT BUỘC, phải là mảng các chuỗi tiếng Việt.
-2. Trích xuất action items rõ ràng, nếu có - BẮT BUỘC, phải là mảng các chuỗi tiếng Việt (có thể rỗng nếu không có).
-3. Trích xuất các sự kiện quan trọng, số liệu, tên, hoặc cam kết - BẮT BUỘC, phải là mảng các chuỗi tiếng Việt (có thể rỗng nếu không có).
-4. Tạo tóm tắt ngắn cho Zalo (tối đa 3 điểm) - BẮT BUỘC, phải là chuỗi tiếng Việt (có thể rỗng nếu không có nội dung).
+1. Tạo tiêu đề tóm tắt ngắn gọn (tối đa 10 từ) - BẮT BUỘC, phải là chuỗi tiếng Việt.
+2. Viết tóm tắt ngắn gọn (tối đa 5 điểm) - BẮT BUỘC, phải là mảng các chuỗi tiếng Việt.
+3. Trích xuất action items rõ ràng, nếu có - BẮT BUỘC, phải là mảng các chuỗi tiếng Việt (có thể rỗng nếu không có).
+4. Trích xuất các sự kiện quan trọng, số liệu, tên, hoặc cam kết - BẮT BUỘC, phải là mảng các chuỗi tiếng Việt (có thể rỗng nếu không có).
+5. Tạo tóm tắt ngắn cho Zalo (tối đa 3 điểm) - BẮT BUỘC, phải là chuỗi tiếng Việt (có thể rỗng nếu không có nội dung).
+6. Tạo 3 đến 5 câu hỏi gợi ý để người dùng có thể hỏi thêm về nội dung - BẮT BUỘC, phải là mảng các chuỗi tiếng Việt (tối thiểu 3, tối đa 5 câu hỏi).
 
 QUY TẮC QUAN TRỌNG:
 - TẤT CẢ các trường đều BẮT BUỘC trong JSON response.
+- title: chuỗi tiếng Việt, tối đa 10 từ, tóm tắt nội dung chính của transcript
 - summary: mảng các chuỗi tiếng Việt, ít nhất 1 mục nếu transcript có nội dung
 - action_items: mảng các chuỗi tiếng Việt, có thể rỗng [] nếu không tìm thấy action
 - key_points: mảng các chuỗi tiếng Việt, trích xuất các sự kiện/số liệu/tên/cam kết quan trọng, có thể rỗng [] nếu không có
 - zalo_brief: chuỗi tiếng Việt, định dạng 3 điểm như "- Điểm 1\n- Điểm 2\n- Điểm 3", có thể là chuỗi rỗng "" nếu không có nội dung
+- questions: mảng các chuỗi tiếng Việt, từ 3 đến 5 câu hỏi gợi ý để người dùng có thể hỏi thêm về nội dung, ví dụ: "Chi tiết về [chủ đề] là gì?", "Có những action items nào cần thực hiện?", "Kết quả của [sự kiện] như thế nào?"
 - Nếu transcript về lecture/thinking, key_points nên chứa các ý tưởng/khái niệm chính
 - Nếu transcript về meeting, action_items nên chứa các nhiệm vụ/cam kết
 - TẤT CẢ nội dung phải bằng TIẾNG VIỆT, chỉ giữ keywords chuyên ngành bằng tiếng Anh (API, Backend, MVP, etc.)
@@ -47,17 +51,21 @@ Trả về JSON chính xác theo format sau (TẤT CẢ các trường bắt bu�
 
 {
   "context": "%s",
+  "title": "Tiêu đề tóm tắt nội dung",
   "summary": ["điểm 1", "điểm 2"],
   "action_items": ["nhiệm vụ 1", "nhiệm vụ 2"],
   "key_points": ["sự kiện 1", "sự kiện 2"],
-  "zalo_brief": "- Điểm 1\\n- Điểm 2\\n- Điểm 3"
+  "zalo_brief": "- Điểm 1\\n- Điểm 2\\n- Điểm 3",
+  "questions": ["Câu hỏi 1?", "Câu hỏi 2?", "Câu hỏi 3?"]
 }
 
 QUAN TRỌNG: Bạn PHẢI cung cấp tất cả các trường:
+- title: PHẢI có tiêu đề tóm tắt, tối đa 10 từ, bằng tiếng Việt
 - summary: PHẢI có ít nhất 1 mục nếu transcript có nội dung ý nghĩa
 - action_items: mảng (có thể rỗng [] nếu không có actions)
 - key_points: mảng (PHẢI trích xuất các sự kiện/số liệu/tên/ý tưởng quan trọng, chỉ rỗng [] nếu thực sự không có thông tin quan trọng)
 - zalo_brief: chuỗi (PHẢI cung cấp định dạng 3 điểm, chỉ dùng chuỗi rỗng "" nếu transcript hoàn toàn trống)
+- questions: PHẢI có từ 3 đến 5 câu hỏi gợi ý bằng tiếng Việt, giúp người dùng khám phá thêm nội dung
 - TẤT CẢ nội dung phải bằng TIẾNG VIỆT, chỉ giữ keywords chuyên ngành bằng tiếng Anh`, transcript, context, context)
 
 	return systemPrompt, userPrompt

@@ -17,6 +17,7 @@ type STTRequest struct {
 	Provider         string                 `json:"stt_provider"`
 	Language         *string                `json:"language,omitempty"`
 	ModelVersion     *string                `json:"model_version,omitempty"`
+	Title            *string                `json:"title,omitempty"`
 	Transcript       *string                `json:"transcript,omitempty"`
 	Confidence       *float64               `json:"confidence,omitempty"`
 	Status           string                 `json:"status"`
@@ -25,4 +26,3 @@ type STTRequest struct {
 	Metadata         map[string]interface{} `json:"metadata"`
 	CreatedAt        time.Time              `json:"created_at"`
 }
-

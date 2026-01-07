@@ -171,14 +171,20 @@ func syncAnalysisToDatabase(recordingID string, analysis *ai.AnalysisResult) {
 			"key_points":   analysis.KeyPoints,
 			"action_items": analysis.ActionItems,
 			"zalo_brief":   analysis.ZaloBrief,
+			"questions":    analysis.Questions,
 		},
 	}
 
-	// Update metadata and status in database
+	// Update metadata, title, and status in database
 	updateReq := &model.STTRequest{
 		ID:       dbUUID,
 		Status:   "success", // Set status to success when analysis completes
 		Metadata: metadata,
+	}
+	// Convert string title to *string
+	if analysis.Title != "" {
+		title := analysis.Title
+		updateReq.Title = &title
 	}
 
 	if err := sttRepo.UpdateResult(ctx, updateReq); err != nil {
